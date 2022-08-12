@@ -1,6 +1,6 @@
 'use strict';
 
-// Data
+//  ========== DATA ==========
 const account1 = {
   owner: 'Aleksey Mazur',
   movements: [200, 450, -400, 3000, -650, -130, 70, 1300],
@@ -74,7 +74,7 @@ const account4 = {
 
 const accounts = [account1, account2, account3, account4];
 
-// Elements
+//  ========== ELEMENTS ==========
 const labelWelcome = document.querySelector('.welcome');
 const labelDate = document.querySelector('.date');
 const labelBalance = document.querySelector('.balance__value');
@@ -100,6 +100,17 @@ const inputLoanAmount = document.querySelector('.form__input--loan-amount');
 const inputCloseUsername = document.querySelector('.form__input--user');
 const inputClosePin = document.querySelector('.form__input--pin');
 
+//  ========== FUNCTIONS ==========
+// Date function
+const formatMovementDate = function (date) {
+  const day = `${date.getDate()}`.padStart(2, 0);
+  const month = `${date.getMonth() + 1}`.padStart(2, 0);
+  const year = date.getFullYear();
+  const hour = `${date.getHours()}`.padStart(2, 0);
+  const min = `${date.getMinutes()}`.padStart(2, 0);
+  return `${day}/${month}/${year}, ${hour}:${min}`;
+};
+
 // Display funds movement
 const displayMovements = function (acc, sort = false) {
   containerMovements.innerHTML = '';
@@ -112,12 +123,7 @@ const displayMovements = function (acc, sort = false) {
     const type = mov > 0 ? 'deposit' : 'withdrawal';
 
     const date = new Date(acc.movementsDates[i]);
-    const day = `${date.getDate()}`.padStart(2, 0);
-    const month = `${date.getMonth() + 1}`.padStart(2, 0);
-    const year = date.getFullYear();
-    const hour = `${date.getHours() + 1}`.padStart(2, 0);
-    const min = `${date.getMinutes() + 1}`.padStart(2, 0);
-    const displayDate = `${day}/${month}/${year}, ${hour}:${min}`;
+    const displayDate = formatMovementDate(date);
 
     const html = `
       <div class="movements__row">
@@ -154,7 +160,6 @@ const calcDisplaySummary = function (acc) {
     .filter(mov => mov > 0)
     .map(deposit => (deposit * acc.interestRate) / 100)
     .filter((int, i, arr) => {
-      // console.log(arr);
       return int > 1;
     })
     .reduce((acc, int) => acc + int, 0);
@@ -173,6 +178,7 @@ const createUsernames = function (accs) {
 };
 createUsernames(accounts);
 
+// Update UI
 const updateUI = function (acc) {
   // Display movements
   displayMovements(acc);
@@ -184,16 +190,35 @@ const updateUI = function (acc) {
   calcDisplaySummary(acc);
 };
 
-// Event handlers
-let currentAccount;
+// Start logout timer
+const startLogOutTimer = function () {
+  const tick = () => {
+    const min = `${Math.trunc(time / 60)}`.padStart(2, 0);
+    const sec = `${time % 60}`.padStart(2, 0);
 
-// FAKE ALWAYS LOGGED IN
-currentAccount = account1;
-updateUI(currentAccount);
-containerApp.style.opacity = 100;
+    labelTimer.textContent = `${min}:${sec}`;
 
+    if (time === 0) {
+      clearInterval(timer);
+      labelWelcome.textContent = 'Log in to Small Screen Finance Bank';
+      containerApp.style.opacity = 0;
+    }
+
+    time--;
+  };
+
+  let time = 300;
+  tick();
+  const timer = setInterval(tick, 1000);
+
+  return timer;
+};
+
+//  ========== EVENT HANDLERS ==========
+let currentAccount, timer;
+
+// Login
 btnLogin.addEventListener('click', function (e) {
-  // Prevent form from submitting
   e.preventDefault();
 
   currentAccount = accounts.find(
@@ -211,16 +236,15 @@ btnLogin.addEventListener('click', function (e) {
 
     // Create current date and time
     const now = new Date();
-    const day = `${now.getDate()}`.padStart(2, 0);
-    const month = `${now.getMonth() + 1}`.padStart(2, 0);
-    const year = now.getFullYear();
-    const hour = `${now.getHours()}`.padStart(2, 0);
-    const min = `${now.getMinutes()}`.padStart(2, 0);
-    labelDate.textContent = `${day}/${month}/${year}, ${hour}:${min}`;
+    labelDate.textContent = formatMovementDate(now);
 
     // Clear input fields
     inputLoginUsername.value = inputLoginPin.value = '';
     inputLoginPin.blur();
+
+    // Timer
+    if (timer) clearInterval(timer);
+    timer = startLogOutTimer();
 
     // Update UI
     updateUI(currentAccount);
@@ -249,30 +273,42 @@ btnTransfer.addEventListener('click', function (e) {
     currentAccount.balance >= amount &&
     receiverAcc?.username !== currentAccount.username
   ) {
-    // Doing the transfer
-    currentAccount.movements.push(-amount);
-    receiverAcc.movements.push(amount);
-    // Add transfer date
-    currentAccount.movementsDates.push(new Date().toISOString());
-    receiverAcc.movementsDates.push(new Date().toISOString());
+    setTimeout(() => {
+      // Doing the transfer
+      currentAccount.movements.push(-amount);
+      receiverAcc.movements.push(amount);
+      // Add transfer date
+      currentAccount.movementsDates.push(new Date().toISOString());
+      receiverAcc.movementsDates.push(new Date().toISOString());
 
-    // Update UI
-    updateUI(currentAccount);
+      // Update UI
+      updateUI(currentAccount);
+    }, 1000);
+
+    // Reset timer
+    clearInterval(timer);
+    timer = startLogOutTimer();
   }
 });
 
+// Request loan
 btnLoan.addEventListener('click', function (e) {
   e.preventDefault();
 
   const amount = Math.floor(inputLoanAmount.value);
 
   if (amount > 0 && currentAccount.movements.some(mov => mov >= amount * 0.1)) {
-    // Add movement and loan date
-    currentAccount.movements.push(amount);
-    currentAccount.movementsDates.push(new Date().toISOString());
+    setTimeout(() => {
+      // Add movement and loan date
+      currentAccount.movements.push(amount);
+      currentAccount.movementsDates.push(new Date().toISOString());
 
-    // Update UI
-    updateUI(currentAccount);
+      // Update UI
+      updateUI(currentAccount);
+    }, 2500);
+    // Reset timer
+    clearInterval(timer);
+    timer = startLogOutTimer();
   }
 
   inputLoanAmount.value = '';
@@ -290,7 +326,6 @@ btnClose.addEventListener('click', function (e) {
     const index = accounts.findIndex(
       acc => acc.username === currentAccount.username
     );
-    console.log(index);
 
     //Delete account
     accounts.splice(index, 1);
@@ -303,6 +338,7 @@ btnClose.addEventListener('click', function (e) {
   inputCloseUsername.value = inputClosePin.value = '';
 });
 
+// Sort movements by value
 let sorted = false;
 btnSort.addEventListener('click', function (e) {
   e.preventDefault();
